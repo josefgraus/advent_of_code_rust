@@ -16,14 +16,13 @@ fn main() {
       // (1) This gets a little more dense than I want a statement to be since I'm not only parsing the number from a string slice
       //     but I'm also taking the absolute value of its remainder against the number of dial digits.
       //     Arguably a confusing read, not really succinct -- I haven't figured out the Rust preference for these kinds of statements
-      // (2) Taking the remainder of the rotation lets us simplify the wrap-around logic in the "left" rotation case
-      let rot = (match line[1..].trim().parse::<i32>() {
+      let rot = match line[1..].trim().parse::<i32>() {
          Ok(val) => val,
          Err(e) => {
             eprintln!("Could not convert {line}: {e}");
             continue;
          }
-      } % DIAL_CARDINALITY);
+      };
 
       if line.starts_with("L") {
          dial = (dial - rot + DIAL_CARDINALITY) % DIAL_CARDINALITY;
