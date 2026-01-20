@@ -23,7 +23,7 @@ fn main() {
             eprintln!("Could not convert {line}: {e}");
             continue;
          }
-      } % DIAL_CARDINALITY).abs(); // abs is not necessary here due to the input, but everyone hates unsanitized input!
+      } % DIAL_CARDINALITY);
 
       if line.starts_with("L") {
          dial = (dial - rot + DIAL_CARDINALITY) % DIAL_CARDINALITY;
