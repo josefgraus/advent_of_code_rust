@@ -13,9 +13,9 @@ fn main() {
    let mut dial: i32 = 50;
    let mut zeroed: u32 = 0;
    for line in input.lines() {
-      // (1) This gets a little more dense than I want a statement to be since I'm not only parsing the number from a string slice
-      //     but I'm also taking the absolute value of its remainder against the number of dial digits.
-      //     Arguably a confusing read, not really succinct -- I haven't figured out the Rust preference for these kinds of statements
+      // This gets a little more dense than I want a statement to be since I'm not only parsing the number from a string slice
+      // but I'm also taking the absolute value of its remainder against the number of dial digits.
+      // Arguably a confusing read, not really succinct -- I haven't figured out the Rust preference for these kinds of statements
       let rot = match line[1..].trim().parse::<i32>() {
          Ok(val) => val,
          Err(e) => {
