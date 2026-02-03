@@ -211,6 +211,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "day_3"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "indoc",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
