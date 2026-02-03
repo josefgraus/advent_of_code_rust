@@ -17,12 +17,8 @@ fn max_joltages(bank: &Vec<&str>) -> Vec<u32> {
    bank.iter()
       .map(|s| {
          let (index, forward_max) = first_index_of_largest(&s[..s.len()-1]);
-
-         let reversed: String = s[index+1..].chars().rev().collect();
-         
-         let (_rev_index, reverse_max) = first_index_of_largest(&reversed);
-
-         forward_max * 10 + reverse_max
+         let (_, next_max) = first_index_of_largest(&s[index+1..]);
+         forward_max * 10 + next_max
       }).collect()
 }
 
