@@ -2,11 +2,10 @@ use common::download_input;
 use std::fs;
 
 
-
-fn first_index_of_largest(nbr_string: &str) -> (usize, u32) {
+fn first_index_of_largest(nbr_string: &str) -> (usize, u8) {
    nbr_string.chars()
       .enumerate()
-      .filter_map(|(i, c)| c.to_digit(10).map(|d| (i, d)))
+      .filter_map(|(i, c)| c.to_digit(10).map(|d| (i, d as u8)))
       .fold(None, |max, (i, d)| match max {
             None => Some((i, d)),
             Some((_, max_d)) if d > max_d => Some((i, d)),
@@ -19,7 +18,6 @@ fn max_joltages(banks: &[&str], magnitude: usize) -> Vec<u64> {
    let mut values: Vec<u64> = Vec::new();
    for &s in banks {
       assert!(s.len() >= magnitude);
-
       let mut index: usize = 0;
       let mut rindex = s.len() - magnitude;
       let mut value: u64 = 0;
@@ -27,7 +25,7 @@ fn max_joltages(banks: &[&str], magnitude: usize) -> Vec<u64> {
          let (f_index, largest) = first_index_of_largest(&s[index..=rindex]);
          index += f_index+1;
          rindex += 1;
-         value += (largest as u64) * (10 as u64).pow((s.len() - rindex) as u32);
+         value += (largest as u64) * (10u64).pow((s.len() - rindex) as u32);
       }
       values.push(value);
    }
@@ -57,7 +55,7 @@ fn main() {
 mod tests {
    use super::*;
 
-   // Pulled from Advent of Code day 2 example
+   // Pulled from Advent of Code day 3 example
    // https://adventofcode.com/2025/day/3
    const INPUT: &[&str] = &[
       "987654321111111",
