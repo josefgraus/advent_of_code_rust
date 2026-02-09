@@ -1,6 +1,8 @@
 use common::download_input;
 use std::fs;
 
+
+
 fn first_index_of_largest(nbr_string: &str) -> (usize, u32) {
    nbr_string.chars()
       .enumerate()
@@ -13,13 +15,23 @@ fn first_index_of_largest(nbr_string: &str) -> (usize, u32) {
       .expect("Failed to find first index of largest digit in string!")
 }
 
-fn max_joltages(bank: &Vec<&str>) -> Vec<u32> {
-   bank.iter()
-      .map(|s| {
-         let (index, forward_max) = first_index_of_largest(&s[..s.len()-1]);
-         let (_, next_max) = first_index_of_largest(&s[index+1..]);
-         forward_max * 10 + next_max
-      }).collect()
+fn max_joltages(banks: &[&str], magnitude: usize) -> Vec<u64> {
+   let mut values: Vec<u64> = Vec::new();
+   for &s in banks {
+      assert!(s.len() >= magnitude);
+
+      let mut index: usize = 0;
+      let mut rindex = s.len() - magnitude;
+      let mut value: u64 = 0;
+      while index < s.len() && rindex < s.len() {
+         let (f_index, largest) = first_index_of_largest(&s[index..=rindex]);
+         index += f_index+1;
+         rindex += 1;
+         value += (largest as u64) * (10 as u64).pow((s.len() - rindex) as u32);
+      }
+      values.push(value);
+   }
+   values
 }
 
 fn main() {
@@ -28,10 +40,17 @@ fn main() {
       Err(_) => download_input("https://adventofcode.com/2025/day/3/input")
    };
 
-   let joltages = max_joltages(&input.lines().collect());
-   let joltages_sum = joltages.iter().sum::<u32>();
+   let banks: Vec<&str> = input.lines().collect();
 
-   println!("Max possible output joltage is {joltages_sum}")
+   let joltages_pair = max_joltages(&banks, 2);
+   let joltages_pair_sum: u64 = joltages_pair.iter().map(|&x| x).sum();
+
+   println!("Max possible output pair joltage is {joltages_pair_sum}");
+
+   let joltages_dodeca = max_joltages(&banks, 12);
+   let joltages_dodeca_sum: u64 = joltages_dodeca.iter().map(|&x| x).sum();
+
+   println!("Max possible output dodeca joltage is {joltages_dodeca_sum}");
 }
 
 #[cfg(test)]
@@ -48,12 +67,12 @@ mod tests {
    ];
 
    #[test]
-   fn test_() {
-      let given: Vec<u32> = vec![98, 89, 78, 92];
-      let joltages = max_joltages(&INPUT.to_vec());
+   fn test_max_joltage_pair() {
+      let given: Vec<u64> = vec![98, 89, 78, 92];
+      let joltages = max_joltages(&INPUT.to_vec(), 2);
 
       assert_eq!(given, joltages);
-      assert_eq!(given.iter().sum::<u32>(), joltages.iter().sum::<u32>());
+      assert_eq!(given.iter().sum::<u64>(), joltages.iter().sum::<u64>());
    }
 
 }
