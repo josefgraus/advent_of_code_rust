@@ -96,7 +96,7 @@ mod tests {
    use super::*;
 
    // Pulled from Advent of Code day 4 example
-   // https://adventofcode.com/2025/day/3
+   // https://adventofcode.com/2025/day/4
    const INPUT: &[&str] = &[
       "..@@.@@@@.",
       "@@@.@.@.@@",
