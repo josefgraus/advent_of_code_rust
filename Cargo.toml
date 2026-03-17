@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["common", "day_1", "day_2", "day_3", "day_4", "day_5"]
+members = ["common", "day_1", "day_2", "day_3", "day_4", "day_5", "day_6"]
 
 [workspace.dependencies]
 indoc = { version = "2.0.7" }
