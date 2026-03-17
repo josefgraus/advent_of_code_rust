@@ -1,6 +1,22 @@
 use common::download_input;
 use std::fs;
-use nalgebra::DMatrix;
+use std::fmt;
+use nalgebra::{DMatrix, DVector, DVectorView, coordinates::X};
+
+enum Operand {
+   Add,
+   Mult
+}
+
+// For debugging
+impl fmt::Display for Operand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Operand::Add => write!(f, "Add +"),
+            Operand::Mult => write!(f, "Mult *")
+        }
+    }
+}
 
 fn parse_homework(worksheet: &[&str]) -> (Vec<char>, Vec<u64>) {
    // Find the line with operators and split it out from operands
@@ -27,7 +43,76 @@ fn parse_homework(worksheet: &[&str]) -> (Vec<char>, Vec<u64>) {
    (ops, values)
 }
 
-fn do_homework(worksheet: &[&str]) -> Vec<u64> {
+// This function takes a column, determines the numeric value by reading vertically per digit, and converts those 
+// recombinations back into numbers in a new column
+fn vert(col: DVectorView<u64>, op: Operand) -> DVector<u64> {
+   println!("{}", op);
+   println!("col: {}", col);
+
+   // The puzzle is tricky because the numbers are left or right justified in their column assignment 
+   // based on the operator used to determine the final value, so we're gonna be just as tricky and 
+   // reverse strings for the addition operator so that transposing the matrix later has the same result for both operations
+   let num_str: Vec<String> = match op {
+      Operand::Mult => {
+         // Reverse the numbers to deal with the alignment difference
+         col.iter()
+            .map(|x| x.to_string().chars().rev().collect())
+            .collect()
+      
+      },
+      Operand::Add => {
+         // Don't reverse the numbers since alignment is fine
+         col.iter()
+            .map(|x| x.to_string())
+            .collect()
+      }
+   };
+
+   //println!("num_str: {:?}", num_str);
+
+   let rows = num_str.len();  // Same number of rows as original
+   let cols = num_str.iter().max_by_key(|s| s.len()).unwrap().len(); // We need to iterate over the largest string, and just pad for shorter ones
+
+   // Here we're going to break each number string into its constituent characters and store them as u32 values in a matrix
+   // We're going to then transpose the matrix and reconstitute the numbers by concatenating the rows and parsing the numbers
+   let data: Vec<u32> = num_str.iter()
+      .flat_map(|s| {
+         let mut row: Vec<u32> = s.chars().map(|c| c as u32).collect();
+         row.resize(cols, 0); // shadowing, briefly. Also a padding value of 0 is a control character we can filter out later
+         row
+      }).collect();
+
+   // Turn our characters into a matrix, then transpose the values
+   // Consider a 2x1 matrix of [ 12, 34 ], this operation would create a 2x2 matrix of,
+   // | '1' '2' | (tranpose) => | '1' '3' |
+   // | '3' '4' |               | '2' '4' |
+   let char_mat = DMatrix::from_row_slice(rows, cols, &data);
+   let transpose = char_mat.transpose();
+
+   //println!("transpose: {}", transpose);
+
+   // This now takes the tranpose matrix, concatenates each row, and parses out a number
+   // So using the previous comment example, the transposed matrix becomes [ 13, 24 ]
+   let num: Vec<u64> = transpose.row_iter()
+      .map(|row| {
+         row.iter()
+            .filter(|&&c| c != 0)
+            .filter_map(|&c| char::from_u32(c))
+            .collect::<String>()
+            .parse()
+            .unwrap()
+      }).collect();
+
+   //println!("num: {:?}", num);
+   
+   let vertical = DVector::from_row_slice(&num);
+
+   println!("vertical:{}", vertical);
+
+   vertical
+}
+
+fn do_homework(worksheet: &[&str], vertical: bool) -> Vec<u64> {
    let (ops, values) = parse_homework(worksheet);
 
    // Construct a matrix from the operands
@@ -39,8 +124,8 @@ fn do_homework(worksheet: &[&str]) -> Vec<u64> {
    // Return a vector of operation results
    homework.column_iter().enumerate().map(|(i, col)| {
       match ops[i] {
-         '+' => col.sum(),
-         '*' => col.product(),
+         '+' => if vertical { vert(col, Operand::Add).sum() } else { col.sum() }
+         '*' => if vertical { vert(col, Operand::Mult).product() } else { col.product() },
          _ => panic!("Unrecognized numeric operation {}!", ops[i])
       }
    }).collect()
@@ -54,9 +139,13 @@ fn main() {
 
    let worksheet: Vec<&str> = input.lines().collect();
 
-   let subtotal = do_homework(&worksheet);
+   let subtotal = do_homework(&worksheet, false);
    let total: u64 = subtotal.iter().sum();
-   println!("Sum of all operations is {total}");
+   println!("Sum of all operations horizontal is {total}");
+
+   let subtotal = do_homework(&worksheet, true);
+   let total: u64 = subtotal.iter().sum();
+   println!("Sum of all operations vertical is {total}");
 }
 
 #[cfg(test)]
@@ -73,17 +162,38 @@ mod tests {
    ];
 
    #[test]
-   fn test_single_category_fresh() {
-      let given = vec![33210, 490, 4243455, 401];
+   fn test_homework() {
+      let mut given = vec![33210, 490, 4243455, 401];
       let given_total: u64 = given.iter().sum();
-      let subtotal = do_homework(&INPUT.to_vec());
+      let mut subtotal = do_homework(&INPUT.to_vec(), false);
       let total: u64 = subtotal.iter().sum();
+
+      given.sort();
+      subtotal.sort();
 
       assert_eq!(given, subtotal);
       assert_eq!(given_total, total);
    }
 
    #[test]
-   fn test_exhaustive_fresh() {
+   fn test_homework_vertical() {
+      let mut given = vec![1058, 3253600, 625, 8544];
+      let given_total: u64 = given.iter().sum();
+      let mut subtotal = do_homework(&INPUT.to_vec(), true);
+      let total: u64 = subtotal.iter().sum();
+
+      given.sort();
+      subtotal.sort();
+
+      assert_eq!(given, subtotal);
+      assert_eq!(given_total, total);
+   }
+
+   #[test]
+   fn test_messed_up() {
+      let data: Vec<u64> = vec![1, 1234, 12, 12345];
+      let input: DVector<u64> = DVector::from_row_slice(&data);
+      let _res = vert(input.as_view(), Operand::Add);
+      let _res = vert(input.as_view(), Operand::Mult);
    }
 }
