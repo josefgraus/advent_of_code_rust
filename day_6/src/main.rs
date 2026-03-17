@@ -1,7 +1,7 @@
 use common::download_input;
 use std::fs;
 use std::fmt;
-use nalgebra::{DMatrix, DVector, DVectorView, coordinates::X};
+use nalgebra::{DMatrix, DVector, DVectorView};
 
 enum Operand {
    Add,
@@ -18,24 +18,19 @@ impl fmt::Display for Operand {
     }
 }
 
-fn parse_homework(worksheet: &[&str]) -> (Vec<char>, Vec<u64>) {
+fn parse_homework(worksheet: &[&str]) -> (Vec<char>, Vec<u128>) {
    // Find the line with operators and split it out from operands
-   let (ops, values): (Vec<&str>, Vec<&str>) = worksheet
-      .iter()
-      .partition(|&s| s.contains('*') || s.contains("+"));
-
-   // There should only be one row of operations
-   assert!(ops.len() == 1);
+   let (ops, values) = worksheet.split_last().unwrap();
 
    // Parse all operands into ints
-   let values: Vec<u64> = values
+   let values: Vec<u128> = values
       .into_iter()
       .flat_map(|s| s.split_whitespace()
-         .map(|x| x.parse::<u64>().expect("item is invalid integer!")))
+         .map(|x| x.parse::<u128>().expect("item is invalid integer!")))
       .collect();   
 
    // Parse all operators into separate characters to be evaluated later
-   let ops: Vec<char> = ops[0]
+   let ops: Vec<char> = ops
       .split_whitespace()
       .flat_map(|s| s.chars())
       .collect();
@@ -45,7 +40,7 @@ fn parse_homework(worksheet: &[&str]) -> (Vec<char>, Vec<u64>) {
 
 // This function takes a column, determines the numeric value by reading vertically per digit, and converts those 
 // recombinations back into numbers in a new column
-fn vert(col: DVectorView<u64>, op: Operand) -> DVector<u64> {
+fn vert(col: DVectorView<u128>, op: Operand) -> DVector<u128> {
    println!("{}", op);
    println!("col: {}", col);
 
@@ -93,7 +88,7 @@ fn vert(col: DVectorView<u64>, op: Operand) -> DVector<u64> {
 
    // This now takes the tranpose matrix, concatenates each row, and parses out a number
    // So using the previous comment example, the transposed matrix becomes [ 13, 24 ]
-   let num: Vec<u64> = transpose.row_iter()
+   let num: Vec<u128> = transpose.row_iter()
       .map(|row| {
          row.iter()
             .filter(|&&c| c != 0)
@@ -112,7 +107,7 @@ fn vert(col: DVectorView<u64>, op: Operand) -> DVector<u64> {
    vertical
 }
 
-fn do_homework(worksheet: &[&str], vertical: bool) -> Vec<u64> {
+fn do_homework(worksheet: &[&str], vertical: bool) -> Vec<u128> {
    let (ops, values) = parse_homework(worksheet);
 
    // Construct a matrix from the operands
@@ -123,7 +118,7 @@ fn do_homework(worksheet: &[&str], vertical: bool) -> Vec<u64> {
    // Index into the operands given the column index to determine the operation to perform on the operands in each row
    // Return a vector of operation results
    homework.column_iter().enumerate().map(|(i, col)| {
-      match ops[i] {
+            match ops[i] {
          '+' => if vertical { vert(col, Operand::Add).sum() } else { col.sum() }
          '*' => if vertical { vert(col, Operand::Mult).product() } else { col.product() },
          _ => panic!("Unrecognized numeric operation {}!", ops[i])
@@ -140,11 +135,11 @@ fn main() {
    let worksheet: Vec<&str> = input.lines().collect();
 
    let subtotal = do_homework(&worksheet, false);
-   let total: u64 = subtotal.iter().sum();
+   let total: u128 = subtotal.iter().map(|&x| x as u128).sum();
    println!("Sum of all operations horizontal is {total}");
 
    let subtotal = do_homework(&worksheet, true);
-   let total: u64 = subtotal.iter().sum();
+   let total: u128 = subtotal.iter().sum();
    println!("Sum of all operations vertical is {total}");
 }
 
@@ -164,9 +159,9 @@ mod tests {
    #[test]
    fn test_homework() {
       let mut given = vec![33210, 490, 4243455, 401];
-      let given_total: u64 = given.iter().sum();
+      let given_total: u128 = 4277556;
       let mut subtotal = do_homework(&INPUT.to_vec(), false);
-      let total: u64 = subtotal.iter().sum();
+      let total: u128 = subtotal.iter().sum();
 
       given.sort();
       subtotal.sort();
@@ -178,9 +173,9 @@ mod tests {
    #[test]
    fn test_homework_vertical() {
       let mut given = vec![1058, 3253600, 625, 8544];
-      let given_total: u64 = given.iter().sum();
+      let given_total: u128 = 3263827;
       let mut subtotal = do_homework(&INPUT.to_vec(), true);
-      let total: u64 = subtotal.iter().sum();
+      let total: u128 = subtotal.iter().sum();
 
       given.sort();
       subtotal.sort();
@@ -191,8 +186,8 @@ mod tests {
 
    #[test]
    fn test_messed_up() {
-      let data: Vec<u64> = vec![1, 1234, 12, 12345];
-      let input: DVector<u64> = DVector::from_row_slice(&data);
+      let data: Vec<u128> = vec![2238, 6488, 184, 88];
+      let input: DVector<u128> = DVector::from_row_slice(&data);
       let _res = vert(input.as_view(), Operand::Add);
       let _res = vert(input.as_view(), Operand::Mult);
    }
