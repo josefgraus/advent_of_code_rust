@@ -3,17 +3,17 @@ use std::fs;
 use std::fmt;
 use nalgebra::{DMatrix, DVector, DVectorView};
 
-enum Operand {
-   Add,
-   Mult
+enum Alignment {
+   Left,
+   Right
 }
 
 // For debugging
-impl fmt::Display for Operand {
+impl fmt::Display for Alignment {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Operand::Add => write!(f, "Add +"),
-            Operand::Mult => write!(f, "Mult *")
+            Alignment::Left => write!(f, "Left <-"),
+            Alignment::Right => write!(f, "Right ->")
         }
     }
 }
@@ -40,30 +40,22 @@ fn parse_homework(worksheet: &[&str]) -> (Vec<char>, Vec<u128>) {
 
 // This function takes a column, determines the numeric value by reading vertically per digit, and converts those 
 // recombinations back into numbers in a new column
-fn vert(col: DVectorView<u128>, op: Operand) -> DVector<u128> {
-   println!("{}", op);
-   println!("col: {}", col);
-
-   // The puzzle is tricky because the numbers are left or right justified in their column assignment 
-   // based on the operator used to determine the final value, so we're gonna be just as tricky and 
-   // reverse strings for the addition operator so that transposing the matrix later has the same result for both operations
-   let num_str: Vec<String> = match op {
-      Operand::Mult => {
+fn vert(col: DVectorView<u128>, alignment: Alignment) -> DVector<u128> {
+   let num_str: Vec<String> = match alignment {
+      Alignment::Right => {
          // Reverse the numbers to deal with the alignment difference
          col.iter()
             .map(|x| x.to_string().chars().rev().collect())
             .collect()
       
       },
-      Operand::Add => {
+      Alignment::Left => {
          // Don't reverse the numbers since alignment is fine
          col.iter()
             .map(|x| x.to_string())
             .collect()
       }
    };
-
-   //println!("num_str: {:?}", num_str);
 
    let rows = num_str.len();  // Same number of rows as original
    let cols = num_str.iter().max_by_key(|s| s.len()).unwrap().len(); // We need to iterate over the largest string, and just pad for shorter ones
@@ -84,8 +76,6 @@ fn vert(col: DVectorView<u128>, op: Operand) -> DVector<u128> {
    let char_mat = DMatrix::from_row_slice(rows, cols, &data);
    let transpose = char_mat.transpose();
 
-   //println!("transpose: {}", transpose);
-
    // This now takes the tranpose matrix, concatenates each row, and parses out a number
    // So using the previous comment example, the transposed matrix becomes [ 13, 24 ]
    let num: Vec<u128> = transpose.row_iter()
@@ -98,29 +88,45 @@ fn vert(col: DVectorView<u128>, op: Operand) -> DVector<u128> {
             .unwrap()
       }).collect();
 
-   //println!("num: {:?}", num);
-   
-   let vertical = DVector::from_row_slice(&num);
-
-   println!("vertical:{}", vertical);
-
-   vertical
+   DVector::from_row_slice(&num)
 }
 
 fn do_homework(worksheet: &[&str], vertical: bool) -> Vec<u128> {
    let (ops, values) = parse_homework(worksheet);
+   let data_lines = &worksheet[..worksheet.len()-1];
+   let op_line = worksheet.last().unwrap();
 
    // Construct a matrix from the operands
    let rows = worksheet.len() - 1;
    let cols = ops.len();
    let homework = DMatrix::from_row_slice(rows, cols, &values);
 
+   // The puzzle is tricky because the numbers are left or right justified in their column assignment 
+   // We account for this by checking if every row in the column with the operator contains a non-whitespace character
+   // If each row is occupied, then the numbers are left aligned. Otherwise, they're right aligned.
+   let op_char_positions: Vec<usize> = op_line
+      .char_indices()
+      .filter(|(_, c)| !c.is_whitespace())
+      .map(|(i, _)| i)
+      .collect();
+
    // Index into the operands given the column index to determine the operation to perform on the operands in each row
    // Return a vector of operation results
    homework.column_iter().enumerate().map(|(i, col)| {
-            match ops[i] {
-         '+' => if vertical { vert(col, Operand::Add).sum() } else { col.sum() }
-         '*' => if vertical { vert(col, Operand::Mult).product() } else { col.product() },
+      // Determine left/right alignment
+      let op_pos = op_char_positions[i];
+
+      // Check if every data row has a digit at the operator's character position
+      let alignment = if data_lines.iter().all(|line| {
+         line.chars().nth(op_pos)
+               .map(|c| c.is_ascii_digit())
+               .unwrap_or(false)
+      }) { Alignment::Left } else { Alignment::Right };
+
+
+      match ops[i] {
+         '+' => if vertical { vert(col, alignment).sum() } else { col.sum() }
+         '*' => if vertical { vert(col, alignment).product() } else { col.product() },
          _ => panic!("Unrecognized numeric operation {}!", ops[i])
       }
    }).collect()
@@ -150,10 +156,10 @@ mod tests {
    // Pulled from Advent of Code day 6 example
    // https://adventofcode.com/2025/day/6
    const INPUT: &[&str] = &[
-        "123 328  51 64",
-        "45 64  387 23",
-        "6 98  215 314",
-        "*   +   *   +"
+        "123 328  51 64 ",
+        " 45 64  387 23 ",
+        "  6 98  215 314",
+        "*   +   *   +  "
    ];
 
    #[test]
@@ -182,13 +188,5 @@ mod tests {
 
       assert_eq!(given, subtotal);
       assert_eq!(given_total, total);
-   }
-
-   #[test]
-   fn test_messed_up() {
-      let data: Vec<u128> = vec![2238, 6488, 184, 88];
-      let input: DVector<u128> = DVector::from_row_slice(&data);
-      let _res = vert(input.as_view(), Operand::Add);
-      let _res = vert(input.as_view(), Operand::Mult);
    }
 }
