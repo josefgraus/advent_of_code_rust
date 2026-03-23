@@ -135,7 +135,7 @@ fn do_homework(worksheet: &[&str], vertical: bool) -> Vec<u128> {
 fn main() {
    let input = match fs::exists("day_6/input.txt") {
       Ok(_) => fs::read_to_string("day_6/input.txt").expect("Could not read file!"),
-      Err(_) => download_input("https://adventofcode.com/2025/day/5/input")
+      Err(_) => download_input("https://adventofcode.com/2025/day/6/input")
    };
 
    let worksheet: Vec<&str> = input.lines().collect();
