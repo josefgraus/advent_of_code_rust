@@ -166,7 +166,7 @@ fn last_pair(junction_boxes: &[&str]) -> [[i64; 3]; 2] {
    // 2. Find the next nearest neighbor to Edge.A (call it C), which will replace the the popped edge in nn_edges as Edge{A,C}
    // 3. Perform a sorted insert of Edge{A,C} into nn_edges to maintain sorted order (binary_search is used here)
    // 4. Add the two points A,B from Edge{A,B} (which was popped off nn_edges in (1)) to an appropriate graph component
-   // 6. Loop infinitely and add a break when adding an edge will result in a merge of the last two components
+   // 5. Loop infinitely and add a break when adding an edge will result in a merge of the last two components
    let mut edges: HashSet<Edge> = HashSet::new();
    loop {
       if let Some(val) = nn_edges.pop() {
