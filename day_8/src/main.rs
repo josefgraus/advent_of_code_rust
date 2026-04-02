@@ -56,54 +56,68 @@ fn largest_components(junction_boxes: &[&str], num_edges: usize, num_components:
 
    let mut nn_edges: Vec<(i64, Edge, usize)> = items.iter()
       .map(|&p| {
-         let q = kdtree.nearests(&p, 2).get(1).expect("Could not find nearest neighbor!").clone();
+         let mut nearest = kdtree.nearests(&p, 2);
+         nearest.sort_by_key(|item| std::cmp::Reverse(item.squared_distance));
+         let q: kd_tree::ItemAndDistance<'_, [i64; 3], i64> = nearest.get(0).expect("Could not find nearest neighbor!").clone();
          let edge = Edge::new(p, q.item.clone());
          (q.squared_distance, edge, 2)
       })
       .collect();
 
    nn_edges.sort_by_key(|(dist_sq, _, _)| std::cmp::Reverse(*dist_sq));
-   //println!("{edges:#?}");
 
-   let mut edges: HashSet<(i64, Edge)> = HashSet::new();
+   let mut edges: HashSet<Edge> = HashSet::new();
    while edges.len() < num_edges {
       if let Some(val) = nn_edges.pop() {
-         let q = kdtree.nearests(&val.1.a, val.2 + 1).get(val.2).expect("Could not find nearest neighbor!").clone();
+         // Find N-th nearest neighbor to first point in edge and create a new edge
+         let mut nearest = kdtree.nearests(&val.1.a, val.2 + 1);
+         nearest.sort_by_key(|item| std::cmp::Reverse(item.squared_distance));           
+         let q = nearest.get(0).expect("Could not find nearest neighbor!").clone();
          let edge = Edge::new(val.1.a.clone(), q.item.clone());
+
          // binary search insert into nn_edges
          let insert_pos = nn_edges.binary_search_by(|probe: &(i64, Edge, usize)| probe.0.cmp(&q.squared_distance).reverse()).unwrap_or_else(|i| i);
          nn_edges.insert(insert_pos, (q.squared_distance, edge, val.2+1));
-         edges.insert((val.0, val.1));
+
+         edges.insert(val.1);
       } else {
          panic!("Cannot not pop from nearest neigbor edges!");
       }
    }
 
-   assert_eq!(edges.len(), num_edges);
-
    let mut components: Vec<HashSet<[i64;3]>> = vec![];
-   for (_, e) in edges {
-      let mut inserted = false;
-      for pool in &mut components {
-         if pool.contains(&e.a) || pool.contains(&e.b) {
-            pool.insert(e.a.clone());
-            pool.insert(e.b.clone());
-            inserted = true;
-            break;
-         }
-      }
+   for e in edges {
+      // Find which existing components contain each endpoint
+      let idx_a = components.iter().position(|pool| pool.contains(&e.a));
+      let idx_b = components.iter().position(|pool| pool.contains(&e.b));
 
-      if !inserted {
-         let new_pool: HashSet<[i64; 3]> = [e.a.clone(), e.b.clone()].into_iter().collect();
-         components.push(new_pool);
+      match (idx_a, idx_b) {
+         (Some(ia), Some(ib)) if ia == ib => {
+               // Both already in the same component, nothing to do
+         }
+         (Some(ia), Some(ib)) => {
+               // Merge ib into ia, then remove ib
+               let pool_b = components.remove(ib);
+               // After remove, ia may have shifted if ib < ia
+               let ia = if ib < ia { ia - 1 } else { ia };
+               components[ia].extend(pool_b);
+         }
+         (Some(ia), None) => {
+               components[ia].insert(e.b);
+         }
+         (None, Some(ib)) => {
+               components[ib].insert(e.a);
+         }
+         (None, None) => {
+               // Neither endpoint seen yet; create a new component
+               let new_pool: HashSet<[i64; 3]> = [e.a, e.b].into_iter().collect();
+               components.push(new_pool);
+         }
       }
    }
 
    components.sort_by_key(|component| std::cmp::Reverse(component.len()));
    let components: Vec<HashSet<[i64; 3]>> = components.into_iter().take(num_components).collect();
-
-   //println!("{components:#?}");
-   assert_eq!(components.len(), num_components);
 
    components.iter()
       .map(|component| {
